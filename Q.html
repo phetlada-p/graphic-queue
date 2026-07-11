@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการออเดอร์ป้ายลาเบล</title>
+    <!-- ใช้ฟอนต์ Anuphan เพิ่มความสวยงามอ่านง่าย -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* สไตล์พื้นฐาน หน้าตาเว็บ */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Anuphan', sans-serif; }
+        body { background-color: #f1f5f9; color: #334155; padding: 24px; }
+        
+        /* ส่วนหัว (Header) */
+        header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 24px; rounded-radius: 16px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+        h1 { font-size: 22px; color: #1e293b; font-weight: 700; }
+        header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+        
+        /* ปุ่มสีน้ำเงิน */
+        .btn-add { background-color: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .btn-add:hover { background-color: #1d4ed8; }
+        
+        /* กระดานบอร์ด (Kanban Grid) */
+        main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+        @media (max-width: 768px) { main { grid-template-columns: 1fr; } }
+        
+        /* คอลัมน์สถานะ */
+        .column { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 16px; display: flex; flex-col; flex-direction: column; }
+        .column-header { font-size: 15px; font-weight: 600; color: #475569; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; padding-left: 4px; }
+        .count-badge { font-size: 11px; padding: 2px 8px; border-radius: 9999px; color: white; font-weight: bold; }
+        .bg-pending { background-color: #f59e0b; }
+        .bg-designing { background-color: #3b82f6; }
+        .bg-approved { background-color: #10b981; }
+        .text-approved { color: #065f46; }
+        
+        .card-container { min-height: 500px; display: flex; flex-direction: column; gap: 12px; }
+        
+        /* การ์ดออเดอร์ */
+        .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between; }
+        .card:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .card-top { display: flex; justify-content: space-between; align-items: start; gap: 8px; margin-bottom: 10px; }
+        .customer-name { font-size: 14px; font-weight: 700; color: #1e293b; word-break: break-all; }
+        .deposit-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; shrink: 0; }
+        .deposit-yes { background-color: #d1fae5; color: #065f46; }
+        .deposit-no { background-color: #fef3c7; color: #92400e; }
+        
+        .card-details { font-size: 12px; color: #475569; background-color: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #f1f5f9; margin-bottom: 10px; white-space: pre-wrap; max-height: 180px; overflow-y: auto; font-family: monospace; }
+        .card-price { font-size: 13px; font-weight: 700; color: #334155; }
+        .price-num { color: #2563eb; }
+        
+        /* ปุ่มควบคุมการย้ายสถานะ */
+        .btn-move-full { width: 100%; margin-top: 12px; background-color: #eff6ff; color: #2563eb; border: 1px solid #dbeafe; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+        .btn-move-full:hover { background-color: #dbeafe; }
+        
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+        .btn-back { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; }
+        .btn-back:hover { background-color: #f1f5f9; }
+        .btn-next { background-color: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .btn-next:hover { background-color: #a7f3d0; }
+        .btn-delete { background-color: #fff1f2; color: #e11d48; border: 1px solid #ffe4e6; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; }
+        .btn-delete:hover { background-color: #ffe4e6; }
+        
+        /* หน้าต่างป็อปอัป (Modal) */
+        .modal-overlay { display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+        .modal-box { background: white; padding: 24px; border-radius: 16px; max-width: 500px; w: 100%; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .modal-title { font-size: 16px; font-weight: 700; color: #1e293b; }
+        .btn-close { background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; }
+        .btn-close:hover { color: #475569; }
+        
+        textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; font-family: monospace; resize: vertical; margin-bottom: 16px; outline: none; }
+        textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
+        .form-label { font-size: 12px; font-weight: 500; color: #475569; margin-bottom: 6px; display: block; }
+        
+        .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btn-cancel { background-color: #f1f5f9; color: #475569; border: none; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; }
+        .btn-cancel:hover { background-color: #e2e8f0; }
+        .btn-save { background-color: #2563eb; color: white; border: none; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; }
+        .btn-save:hover { background-color: #1d4ed8; }
+        
+        .show { display: flex !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Header ด้านบน -->
+    <header>
+        <div>
+            <h1>ระบบจัดการออเดอร์ป้ายลาเบล</h1>
+            <p>ก๊อบปี้แชทมาวางช่องเดียว ระบบจะแยกข้อมูลและสร้างการ์ดออเดอร์ให้ทันที</p>
+        </div>
+        <button onclick="openModal()" class="btn-add">➕ วางออเดอร์ใหม่ที่นี่</button>
+    </header>
+
+    <!-- กระดานบอร์ด 3 คอลัมน์ -->
+    <main>
+        <!-- ช่องที่ 1: Pending Design -->
+        <div class="column">
+            <div class="column-header">
+                📥 Pending Design <span class="count-badge bg-pending" id="count-pending">0</span>
+            </div>
+            <div id="pending-list" class="card-container"></div>
+        </div>
+
+        <!-- ช่องที่ 2: Designing -->
+        <div class="column">
+            <div class="column-header">
+                🎨 Designing <span class="count-badge bg-designing" id="count-designing">0</span>
+            </div>
+            <div id="designing-list" class="card-container"></div>
+        </div>
+
+        <!-- ช่องที่ 3: Approved / Waiting for Production -->
+        <div class="column">
+            <div class="column-header text-approved">
+                ⚙️ Approved / Waiting for Production <span class="count-badge bg-approved" id="count-approved">0</span>
+            </div>
+            <div id="approved-list" class="card-container"></div>
+        </div>
+    </main>
+
+    <!-- หน้าต่างป็อปอัปกล่องข้อความเดี่ยว -->
+    <div id="orderModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">วางข้อมูลออเดอร์</div>
+                <button onclick="closeModal()" class="btn-close">&times;</button>
+            </div>
+            <form onsubmit="saveOrder(event)">
+                <label class="form-label">วางข้อความแชทลูกค้าทั้งหมดลงในช่องด้านล่างนี้ได้เลย</label>
+                <textarea id="rawText" required rows="10" placeholder="วางข้อมูลแชทลูกค้าที่ก๊อบปี้มา เช่น...&#10;1.FB.Muhammad Fadhlee&#10;เนื้อซาตินขอบเรียบ...&#10;รวม 1900 บาท&#10;มัดจำ 900"></textarea>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeModal()" class="btn-cancel">ยกเลิก</button>
+                    <button type="submit" class="btn-save">เพิ่มเข้าบอร์ดออเดอร์</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- โค้ดควบคุมระบบการทำงานภายในเครื่อง -->
+    <script>
+        // โหลดข้อมูลเก่าที่เซฟไว้ในเครื่องคอม ถ้าไม่มีจะเริ่มจากบอร์ดเปล่า
+        let orders = JSON.parse(localStorage.getItem('label_system_orders')) || [];
+
+        // ฟังก์ชันแกะข้อความอัจฉริยะ (ดึงบรรทัดแรกมาเป็นหัวข้อ ดึงราคารวม และยอดมัดจำ)
+        function parseOrderText(text) {
+            const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            
+            let customer = lines[0] ? lines[0] : "ออเดอร์ไม่ระบุชื่อ";
+            if (customer.length > 35) customer = customer.substring(0, 35) + "...";
+
+            let totalPrice = 0;
+            const totalMatches = text.match(/(?:รวม|ราคา|ยอด)\s*(?:=|:|\s)\s*([0-9,.]+)/i) || text.match(/([0-9,.]+)\s*(?:บาท|฿)/);
+            if (totalMatches && totalMatches[1]) {
+                totalPrice = parseFloat(totalMatches[1].replace(/,/g, '')) || 0;
+            }
+
+            let deposit = 0;
+            const depositMatches = text.match(/(?:มัดจำ|จำแล้ว)\s*([0-9,.]+)/i);
+            if (depositMatches && depositMatches[1]) {
+                deposit = parseFloat(depositMatches[1].replace(/,/g, '')) || 0;
+            }
+
+            return { customer, totalPrice, deposit };
+        }
+
+        // ฟังก์ชันวาดการ์ดขึ้นบนจอคอมพิวเตอร์
+        function renderBoard() {
+            const columns = {
+                pending: document.getElementById('pending-list'),
+                designing: document.getElementById('designing-list'),
+                approved: document.getElementById('approved-list')
+            };
+
+            // ล้างข้อมูลเก่าก่อนวาดใหม่
+            Object.values(columns).forEach(col => col.innerHTML = '');
+            let counts = { pending: 0, designing: 0, approved: 0 };
+
+            orders.forEach(order => {
+                counts[order.status]++;
+                
+                const card = document.createElement('div');
+                card.className = "card";
+                
+                let actionButtons = '';
+                if (order.status === 'pending') {
+                    actionButtons = `<button type="button" onclick="moveStatus(${order.id}, 'designing')" class="btn-move-full">เริ่มออกแบบ 🎨</button>`;
+                } else if (order.status === 'designing') {
+                    actionButtons = `
+                        <div class="btn-group">
+                            <button type="button" onclick="moveStatus(${order.id}, 'pending')" class="btn-back">ย้อนกลับ</button>
+                            <button type="button" onclick="moveStatus(${order.id}, 'approved')" class="btn-next">คอนเฟิร์มแบบ ⚙️</button>
+                        </div>`;
+                } else if (order.status === 'approved') {
+                    actionButtons = `
+                        <div class="btn-group">
+                            <button type="button" onclick="moveStatus(${order.id}, 'designing')" class="btn-back">แก้ไขแบบ</button>
+                            <button type="button" onclick="deleteOrder(${order.id})" class="btn-delete">ลบงาน</button>
+                        </div>`;
+                }
+
+                card.innerHTML = `
+                    <div>
+                        <div class="card-top">
+                            <div class="customer-name">${order.customer}</div>
+                            <span class="deposit-badge ${order.deposit >= order.totalPrice && order.totalPrice > 0 ? 'deposit-yes' : 'deposit-no'}">
+                                ${order.deposit > 0 ? `มัดจำ ฿${order.deposit}` : 'ยังไม่มัดจำ'}
+                            </span>
+                        </div>
+                        <div class="card-details">${order.details}</div>
+                        <div class="card-price">ยอดเงินรวม: <span class="price-num">${order.totalPrice > 0 ? '฿' + order.totalPrice.toLocaleString() : 'ไม่ระบุราคา'}</span></div>
+                    </div>
+                    ${actionButtons}
+                `;
+                columns[order.status].appendChild(card);
+            });
+
+            // อัปเดตตัวเลขจำนวนออเดอร์แต่ละช่อง
+            document.getElementById('count-pending').innerText = counts.pending;
+            document.getElementById('count-designing').innerText = counts.designing;
+            document.getElementById('count-approved').innerText = counts.approved;
+
+            // บันทึกข้อมูลลงเครื่องคอมพิวเตอร์แบบอัปเดตล่าสุด
+            localStorage.setItem('label_system_orders', JSON.stringify(orders));
+        }
+
+        function moveStatus(id, newStatus) {
+            const index = orders.findIndex(o => o.id === id);
+            if (index !== -1) {
+                orders[index].status = newStatus;
+                renderBoard();
+            }
+        }
+
+        function deleteOrder(id) {
+            if(confirm('คุณต้องการลบออเดอร์นี้ออกจากระบบใช่ไหม?')) {
+                orders = orders.filter(o => o.id !== id);
+                renderBoard();
+            }
+        }
+
+        function openModal() { document.getElementById('orderModal').classList.add('show'); document.getElementById('rawText').focus(); }
+        function closeModal() { document.getElementById('orderModal').classList.remove('show'); document.getElementById('orderForm').reset(); }
+
+        function saveOrder(event) {
+            event.preventDefault();
+            const rawText = document.getElementById('rawText').value;
+            const parsedData = parseOrderText(rawText);
+
+            const newOrder = {
+                id: Date.now(),
+                customer: parsedData.customer,
+                details: rawText,
+                totalPrice: parsedData.totalPrice,
+                deposit: parsedData.deposit,
+                status: 'pending'
+            };
+
+            orders.unshift(newOrder);
+            renderBoard();
+            closeModal();
+        }
+
+        // เรียกใช้งานให้ระบบวาดหน้าบอร์ดทันทีที่เปิดเว็บ
+        renderBoard();
+    </script>
+</body>
+</html>
