@@ -31,9 +31,12 @@
         .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between; }
         .card-top { display: flex; justify-content: space-between; align-items: start; gap: 8px; margin-bottom: 10px; }
         .customer-name { font-size: 14px; font-weight: 700; color: #1e293b; word-break: break-all; }
+        .badge-group { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .deposit-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
         .deposit-yes { background-color: #d1fae5; color: #065f46; }
         .deposit-no { background-color: #fef3c7; color: #92400e; }
+        .date-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background-color: #ffedd5; color: #c2410c; display: flex; align-items: center; gap: 2px; }
+        
         .card-details { font-size: 12px; color: #475569; background-color: #f8fafc; padding: 10px; border-radius: 8px; margin-bottom: 10px; white-space: pre-wrap; font-family: monospace; max-height: 150px; overflow-y: auto; }
         .card-price { font-size: 13px; font-weight: 700; }
         
@@ -45,7 +48,12 @@
         
         .modal-overlay { display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); align-items: center; justify-content: center; padding: 16px; z-index: 50; }
         .modal-box { background: white; padding: 24px; border-radius: 16px; max-width: 500px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-        textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; font-family: monospace; resize: vertical; margin-bottom: 16px; outline: none; }
+        textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; font-family: monospace; resize: vertical; margin-bottom: 12px; outline: none; }
+        
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+        .form-group label { font-size: 13px; font-weight: 600; color: #475569; }
+        .input-date { padding: 10px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; outline: none; color: #334155; }
+        
         .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .btn-cancel { background-color: #f1f5f9; color: #475569; border: none; padding: 10px; border-radius: 10px; cursor: pointer; }
         .btn-save { background-color: #2563eb; color: white; border: none; padding: 10px; border-radius: 10px; cursor: pointer; }
@@ -87,7 +95,13 @@
                 <button onclick="closeModal()" style="background:none; border:none; font-size:20px; cursor:pointer;">&times;</button>
             </div>
             <form onsubmit="saveOrder(event)" id="orderForm">
-                <textarea id="rawText" required rows="10" placeholder="วางข้อความแชทลูกค้าตรงนี้..."></textarea>
+                <textarea id="rawText" required rows="8" placeholder="วางข้อความแชทลูกค้าตรงนี้..."></textarea>
+                
+                <div class="form-group">
+                    <label for="dueDate">📅 ระบุรอบส่งงาน / ดีดไลน์ (ถ้ามี)</label>
+                    <input type="date" id="dueDate" class="input-date">
+                </div>
+
                 <div class="modal-actions">
                     <button type="button" onclick="closeModal()" class="btn-cancel">ยกเลิก</button>
                     <button type="submit" class="btn-save">เพิ่มเข้าบอร์ด</button>
@@ -130,7 +144,8 @@
         }
 
         function parseOrderText(text) {
-            const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            // แก้ไขจุดบกพร่องของเครื่องหมายพิเศษเพื่อความปลอดภัยในการ split line
+            const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
             let customer = lines[0] ? lines[0] : "ออเดอร์ไม่ระบุชื่อ";
             if (customer.length > 35) customer = customer.substring(0, 35) + "...";
             let totalPrice = 0;
@@ -140,6 +155,14 @@
             const depositMatches = text.match(/(?:มัดจำ|จำแล้ว)\s*([0-9,.]+)/i);
             if (depositMatches && depositMatches[1]) deposit = parseFloat(depositMatches[1].replace(/,/g, '')) || 0;
             return { customer, totalPrice, deposit };
+        }
+
+        function formatDateThai(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return '';
+            const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+            return `${date.getDate()} ${months[date.getMonth()]} ${(date.getFullYear() + 543).toString().substring(2)}`;
         }
 
         function renderBoard() {
@@ -177,13 +200,19 @@
                         </div>`;
                 }
 
+                const formattedDate = order.dueDate ? formatDateThai(order.dueDate) : '';
+                const dateBadgeHtml = formattedDate ? `<span class="date-badge">📅 ส่ง: ${formattedDate}</span>` : '';
+
                 card.innerHTML = `
                     <div>
                         <div class="card-top">
                             <div class="customer-name">${order.customer}</div>
-                            <span class="deposit-badge ${order.deposit >= order.totalPrice && order.totalPrice > 0 ? 'deposit-yes' : 'deposit-no'}">
-                                ${order.deposit > 0 ? `มัดจำ ฿${order.deposit}` : 'ยังไม่มัดจำ'}
-                            </span>
+                            <div class="badge-group">
+                                <span class="deposit-badge ${order.deposit >= order.totalPrice && order.totalPrice > 0 ? 'deposit-yes' : 'deposit-no'}">
+                                    ${order.deposit > 0 ? `มัดจำ ฿${order.deposit}` : 'ยังไม่มัดจำ'}
+                                </span>
+                                ${dateBadgeHtml}
+                            </div>
                         </div>
                         <div class="card-details">${order.details}</div>
                         <div class="card-price">ยอดรวม: <span style="color:#2563eb;">฿${order.totalPrice.toLocaleString()}</span></div>
@@ -201,6 +230,7 @@
         async function saveOrder(event) {
             event.preventDefault();
             const rawText = document.getElementById('rawText').value;
+            const dueDate = document.getElementById('dueDate').value;
             const parsedData = parseOrderText(rawText);
             const newId = "id_" + Date.now();
             
@@ -209,6 +239,7 @@
                 details: rawText,
                 totalPrice: parsedData.totalPrice,
                 deposit: parsedData.deposit,
+                dueDate: dueDate || '',
                 status: 'pending',
                 timestamp: Date.now()
             };
